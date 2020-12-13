@@ -13,7 +13,7 @@ const PLAYER_SPEED = 150;
 const PLAYER_RADIUS = 1;
 const BULLET_SPEED = 150;
 const DEAD_ZONE = 0.2;
-const MIN_ATTACK_DIST_SQ = 32 * 32;
+const MIN_ATTACK_DIST = 128;
 const ATTACK_TIME_MAX = 1200;
 const ATTACK_TIME_MIN = 40;
 const CIRCLE_ATTACK_MIN = 6;
@@ -25,25 +25,27 @@ const SPIRAL_INTERVAL = 150;
 const SHIELD_DURATION = 4000;
 const SHIELD_RADIUS = 256;
 const MAX_HEALTH = 3;
+const HEALTH_PICKUP_RAD = 32;
 
 
 class MainScene extends Phaser.Scene {
   constructor() {
     super({ key: 'main' });
-    this.bounds = new Phaser.Math.Vector2();
-    this.inputv = new Phaser.Math.Vector2();
     this.frag = null;
     this.noise = null;
     this.player = null;
     this.shield = null;
+    this.timeScaleTween = null;
+    this.shieldTween = null;
+    this.healthPickup = null;
+    this.healthMeter = null;
+    this.keys = null;
+    this.bounds = new Phaser.Math.Vector2();
+    this.inputv = new Phaser.Math.Vector2();
     this.shieldRadius = 0;
     this.isShieldOn = false;
-    this.shieldTween = null;
     this.timeScale = 1;
-    this.timeScaleTween = null;
     this.health = MAX_HEALTH;
-    this.playerMoveTimer = 0;
-    this.keys = null;
   }
 
 
@@ -75,6 +77,12 @@ class MainScene extends Phaser.Scene {
     this.bulletManager = new BulletManager(this);
     this.add.existing(this.bulletManager.miasma);
     this.add.existing(this.bulletManager.bulletShadows);
+
+    this.healthPickup = this.add.image(0, 0, 'shield');
+    this.healthPickup.displayWidth = 48;
+    this.healthPickup.displayHeight = 48;
+    this.healthPickup.tint = COLORS.PLAYER;
+    this.spawnHealthPickup();
 
     this.player = this.add.image(40, 40, 'circle');
     this.player.tint = COLORS.PLAYER;
@@ -121,6 +129,14 @@ class MainScene extends Phaser.Scene {
       callback: attackLoop,
       callbackScope: this,
     });
+
+    this.shieldRadius = 0;
+    this.isShieldOn = false;
+    this.timeScale = 1;
+    this.health = MAX_HEALTH;
+    this.time.timeScale = 1;
+
+    this.healthMeter = this.add.text(20, 20, this.health.toString(), { color: '#000' });
   }
 
 
@@ -136,21 +152,34 @@ class MainScene extends Phaser.Scene {
     if (this.inputv.x || this.inputv.y) {
       this.player.x += this.inputv.x * PLAYER_SPEED * secs;
       this.player.y += this.inputv.y * PLAYER_SPEED * secs;
+      this.player.x = Math.max(PLAYER_RADIUS, this.player.x);
+      this.player.x = Math.min(this.bounds.x - PLAYER_RADIUS, this.player.x);
+      this.player.y = Math.max(PLAYER_RADIUS, this.player.y);
+      this.player.y = Math.min(this.bounds.y - PLAYER_RADIUS, this.player.y);
       this.playerStoppedTimer = 0;
     } else {
       this.playerStoppedTimer += dt;
     }
 
-    let px = this.player.x;
-    let py = this.player.y;
+    if (this.healthPickup.visible
+          && isWithin(this.healthPickup.x, this.healthPickup.y, this.player.x, this.player.y, HEALTH_PICKUP_RAD + PLAYER_RADIUS)) {
+      this.onHealthPickup();
+    }
+
+    // TODO This will break if player is ever able to step outside shield.
+    let target = shieldOn ? this.shield : this.player;
+    let px = target.x;
+    let py = target.y;
     let hitRadius = shieldOn ? this.shieldRadius : PLAYER_RADIUS;
     let hasHit = this.bulletManager.updateAndCollide(scaledDt, px, py, hitRadius);
     if (!this.isShieldOn && hasHit) {
-      // TODO Player damage
-      this.shield.x = this.player.x;
-      this.shield.y = this.player.y;
-      this.startShield();
+      this.health -= 1;
+      if (this.health <= 0) {
+        this.gameOver();
+      }
+      this.startShield(this.player.x, this.player.y);
     }
+    this.healthMeter.text = this.health.toString();
   }
 
 
@@ -188,6 +217,12 @@ class MainScene extends Phaser.Scene {
   }
 
 
+  gameOver() {
+    this.time.removeAllEvents();
+    this.scene.restart();
+  }
+
+
   spawnBullet(x, y, vx, vy) {
     if (this.isShieldOn && isWithin(x, y, this.player.x, this.player.y, this.shieldRadius)) {
       return null;
@@ -196,11 +231,35 @@ class MainScene extends Phaser.Scene {
   }
 
 
-  startShield() {
+  spawnHealthPickup() {
+    this.healthPickup.x = this.bounds.x * Math.random();
+    this.healthPickup.y = this.bounds.y * Math.random();
+    this.healthPickup.visible = true;
+  }
+
+
+  onHealthPickup() {
+    this.healthPickup.visible = false;
+    this.health += 0.25;
+    this.time.addEvent({
+      delay: 400,
+      callback: this.spawnHealthPickup,
+      callbackScope: this,
+    });
+  }
+
+
+  startShield(x, y) {
     this.isShieldOn = true;
-    this.shield.visible = true;
     this.shield.setScale(0);
-    this.shieldTween.play();
+    this.shield.x = x;
+    this.shield.y = y;
+    this.shield.visible = true;
+    if (this.shieldTween.isPlaying()) {
+      this.shieldTween.restart();
+    } else {
+      this.shieldTween.play();
+    }
   }
 
 
@@ -234,7 +293,7 @@ function attackLoop() {
     x = Math.random() * this.bounds.x;
     y = Math.random() * this.bounds.y;
     ++tries;
-  } while (isWithin(x, y, this.player.x, this.player.y && tries < 10)); // Capping tries isn't just defensive, it's paranoid programming!
+  } while (isWithin(x, y, this.player.x, this.player.y, MIN_ATTACK_DIST) && tries < 10); // Capping tries isn't just defensive, it's paranoid programming!
   let roll = Math.random();
   if (roll > 0.25) {
     circleAttack(this, x, y);
@@ -279,9 +338,10 @@ function spiralAttack(scn, x, y) {
     scn.spawnBullet(x, y, vx, vy);
     angle += spread;
   }
+  c();
   scn.time.addEvent({
     delay: SPIRAL_INTERVAL,
-    repeat: count,
+    repeat: count - 1,
     callback: c,
   });
 }
