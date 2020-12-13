@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import FixParticleEmitter from './FixParticleEmitter.js';
-import List from '../../Utils/List.js';
+import BulletManager from './BulletManager.js';
+import isWithin from '../../Utils/isWithin.js';
 
 //textures
 import circle from '../../assets/circle.png';
@@ -9,17 +9,10 @@ import noise from '../../assets/noise.png';
 import shield from '../../assets/shield.png';
 import COLORS from '../../COLORS.js'
 
-const BULLET_POOL_SIZE = 2000;
-const BULLET_RADIUS = 16;
-const BULLET_SPEED = 150;
 const PLAYER_SPEED = 150;
 const PLAYER_RADIUS = 1;
+const BULLET_SPEED = 150;
 const DEAD_ZONE = 0.2;
-const MIASMA_PER_BULLET = 8;
-const MIASMA_LIFESPAN = 500;
-const MIASMA_EMIT_INTERVAL = MIASMA_LIFESPAN / MIASMA_PER_BULLET;
-const MAX_MIASMA_PARTICLES = 10000;
-const MAX_FRAG_PARTICLES = 5000;
 const MIN_ATTACK_DIST_SQ = 32 * 32;
 const ATTACK_TIME_MAX = 1200;
 const ATTACK_TIME_MIN = 40;
@@ -34,48 +27,6 @@ const SHIELD_RADIUS = 256;
 const MAX_HEALTH = 3;
 
 
-class Bullet {
-  constructor(spriteBob, shadowBob, emitter) {
-    this.x = 0;
-    this.y = 0;
-    this.vx = 0;
-    this.vy = 0;
-    this.miasma = emitter;
-    this.miasmaTimer = 0;
-    this.sprite = spriteBob;
-    this.shadow = shadowBob;
-    this.prev = null;           // For list insertion
-    this.next = null;
-  }
-
-  kill() {
-    this.sprite.visible = false;
-    this.shadow.visible = false;
-  }
-
-  reset(x, y, vx, vy) {
-    this.x = x;
-    this.y = y;
-    this.vx = vx;
-    this.vy = vy;
-    this.sprite.visible = true;
-    this.shadow.visible = true;
-    this.miasmaTimer = MIASMA_EMIT_INTERVAL;
-  }
-
-  update(dt) {
-    this.miasmaTimer -= dt;
-    if (this.miasmaTimer <= 0) {
-      this.miasma.emitParticleAt(this.x, this.y, 1);
-      this.miasmaTimer = MIASMA_EMIT_INTERVAL;
-    }
-    dt /= 1000;
-    this.x = this.shadow.x = this.sprite.x = this.x + this.vx * dt;
-    this.y = this.shadow.y = this.sprite.y = this.y + this.vy * dt;
-  }
-}
-
-
 class MainScene extends Phaser.Scene {
   constructor() {
     super({ key: 'main' });
@@ -83,13 +34,13 @@ class MainScene extends Phaser.Scene {
     this.inputv = new Phaser.Math.Vector2();
     this.frag = null;
     this.noise = null;
-    this.deadBullets = [];
-    this.liveBullets = new List();
     this.player = null;
     this.shield = null;
     this.shieldRadius = 0;
     this.isShieldOn = false;
     this.shieldTween = null;
+    this.timeScale = 1;
+    this.timeScaleTween = null;
   }
 
 
@@ -104,70 +55,45 @@ class MainScene extends Phaser.Scene {
   create() {
     this.bounds.setTo(this.game.scale.gameSize.width, this.game.scale.gameSize.height);
 
-    let miasma = this.add.particles('circle');
-    miasma.addEmitter(new FixParticleEmitter(miasma, {
-      lifespan: MIASMA_LIFESPAN,
-      on: false,
-      maxParticles: MAX_MIASMA_PARTICLES,
-      scale: { start: 1.5, end: 0.1, ease: 'Circular.InOut' },
-      speed: { min: 0, max: 60 },
-      tint: COLORS.MIASMA,
-    }));
-    
+    let n = this.add.tileSprite(0, 0, this.bounds.x, this.bounds.y, 'noise');
+    n.setOrigin(0);
+    n.alpha = 0.2;
+
+    this.bulletManager = new BulletManager(this);
+    this.add.existing(this.bulletManager.miasma);
+    this.add.existing(this.bulletManager.bulletShadows);
+
     this.player = this.add.image(40, 40, 'circle');
     this.player.tint = COLORS.PLAYER;
-
-    let bulletSprites = this.add.blitter(0, 0, 'circle');
-    let bulletShadows = this.add.blitter(0, 0, 'shadow');
-    //This next part is a hack to fix bobs not using the correct origin.
-    let t = this.game.textures.get('circle').get();
-    bulletSprites.x -= t.width/2;
-    bulletSprites.y -= t.height/2;
-    t = this.game.textures.get('shadow').get();
-    bulletShadows.x -= t.width/2;
-    bulletShadows.y -= t.height/2;
 
     this.shield = this.add.image(0, 0, 'shield');
     this.shield.tint = COLORS.PLAYER;
     this.shield.visible = false;
-    let expandTime = 300;
-    let flickTime = 3000;
-    let shieldFlicker = this.tweens.addCounter({
-      from: 1,
-      to: 0.2,
-      duration: flickTime,
+    this.shieldTween = this.tweens.addCounter({
+      from: 0.1,
+      to: 1,
+      duration: 300,
       onUpdate: this.updateShield,
       onUpdateScope: this,
       onComplete: this.stopShield,
       onCompleteScope: this,
-      ease: Phaser.Math.Easing.Quadratic.In,
-    });
-    shieldFlicker.pause();
-    this.shieldTween = this.tweens.addCounter({
-      duration: expandTime,
-      onUpdate: this.updateShield,
-      onUpdateScope: this,
-      onComplete: shieldFlicker.play,
-      onCompleteScope: shieldFlicker,
-      ease: Phaser.Math.Easing.Quintic.Out,
+      ease: Phaser.Math.Easing.Quintic.InOut,
     });
     this.shieldTween.pause();
 
-    this.frag = this.add.particles('circle');
-    this.frag.addEmitter(new FixParticleEmitter(this.frag, {
-      //alpha: 0.3,
-      lifespan: { min: 100, max: 300 },
-      on: false,
-      maxParticles: MAX_FRAG_PARTICLES,
-      quantity: 10,
-      scale: { start: 1.2, end: 0.1, ease: 'Circular.InOut' },
-      speed: { min: 100, max: 200 },
-      tint: COLORS.BULLET,
-    }));
+    this.timeScaleTween = this.tweens.create({
+      targets: [this, this.time],
+      timeScale: { from: 0.05, to: 1 },
+      duration: 5000,
+      ease: Phaser.Math.Easing.Expo.In,
+    });
+
+    this.add.existing(this.bulletManager.bulletSprites);
+    this.add.existing(this.bulletManager.frag);
 
     let miasmaCam = this.cameras.add();
-    miasmaCam.ignore([this.player, bulletSprites, this.frag]);
-    this.cameras.main.ignore([miasma, bulletShadows, this.shield]);
+    miasmaCam.ignore([n, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
+    this.cameras.main.ignore([this.bulletManager.miasma, this.bulletManager.bulletShadows]);
     //Swap render order.
     this.cameras.cameras.push(this.cameras.cameras.shift());
 
@@ -176,19 +102,6 @@ class MainScene extends Phaser.Scene {
     this.noise.tileScalY = 1.5;
     this.noise.setOrigin(0, 0);
     miasmaCam.setMask(new Phaser.Display.Masks.BitmapMask(this, this.noise));
-
-    // Another hack to get around a Phaser bug. Blitter Bob tints have their rgb reversed.
-    let miasmaColor = ((COLORS.MIASMA & 0xff0000) >> 16) | (COLORS.MIASMA & 0xff00) | ((COLORS.MIASMA & 0xff) << 16);
-    let bulletColor = ((COLORS.BULLET & 0xff0000) >> 16) | (COLORS.BULLET & 0xff00) | ((COLORS.BULLET & 0xff) << 16);
-    for (let i = 0; i < BULLET_POOL_SIZE; ++i) {
-      let sprite = bulletSprites.create(0, 0);
-      sprite.tint = bulletColor;
-      let shadow = bulletShadows.create(0, 0);
-      shadow.tint = miasmaColor;
-      let b = new Bullet(sprite, shadow, miasma);
-      b.kill();
-      this.deadBullets.push(b);
-    }
 
     this.time.addEvent({
       delay: 50,
@@ -200,6 +113,7 @@ class MainScene extends Phaser.Scene {
 
   update(_, dt) {
     let secs = dt / 1000;
+    dt = dt * this.timeScale;
     let shieldOn = this.isShieldOn;
     this.noise.tilePositionX += dt / 20;
     this.noise.tilePositionY += dt / 40;
@@ -215,57 +129,25 @@ class MainScene extends Phaser.Scene {
         }
       }
     }
-    if (shieldOn) {
-      this.shield.x = this.player.x;
-      this.shield.y = this.player.y;
-    }
 
-    let c = 0;
-    let b = this.liveBullets.tail;
     let px = this.player.x;
     let py = this.player.y;
-    let hit = BULLET_RADIUS + (shieldOn ? this.shieldRadius : PLAYER_RADIUS);
-    let br = BULLET_RADIUS;
-    while(b) {
-      c++;
-      let b2 = b.prev;
-      b.update(dt);
-      if (b.x < -br || b.x > this.bounds.x + br || b.y < -br || b.y > this.bounds.y + br) {
-        this.killBullet(b);
-      } else {
-        if (isWithin(px, py, b.x, b.y, hit)) {
-          this.killBullet(b);
-          this.frag.emitParticleAt(b.x, b.y);
-          if (!shieldOn) {
-            // TODO Player health
-            this.startShield();
-          }
-        }
-      }
-      b = b2;
+    let hitRadius = shieldOn ? this.shieldRadius : PLAYER_RADIUS;
+    let hasHit = this.bulletManager.updateAndCollide(dt, px, py, hitRadius);
+    if (!this.isShieldOn && hasHit) {
+      // TODO Player damage
+      this.shield.x = this.player.x;
+      this.shield.y = this.player.y;
+      this.startShield();
     }
   }
 
 
-  spawn(x, y, vx, vy) {
-    if (this.isShieldOn && isWithin(x, y, this.player.x, this.player.y, BULLET_RADIUS + this.shieldRadius)) {
+  spawnBullet(x, y, vx, vy) {
+    if (this.isShieldOn && isWithin(x, y, this.player.x, this.player.y, this.shieldRadius)) {
       return null;
     }
-    let b = this.deadBullets.pop()
-    if (!b) {
-      b = this.liveBullets.shift()
-      b.kill();
-    }
-    b.reset(x, y, vx, vy);
-    this.liveBullets.push(b);
-    return b;
-  }
-
-
-  killBullet(b) {
-    b.kill();
-    this.liveBullets.remove(b);
-    this.deadBullets.push(b);
+    return this.bulletManager.spawn(x, y, vx, vy);
   }
 
 
@@ -280,24 +162,22 @@ class MainScene extends Phaser.Scene {
   stopShield() {
     this.isShieldOn = false;
     this.shield.visible = false;
+    if (this.timeScaleTween.isPlaying()) {
+      this.timeScaleTween.restart();
+    } else {
+      this.timeScaleTween.play();
+    }
   }
 
 
   updateShield(tween) {
     let val = tween.getValue(); 
-    this.shield.alpha = val;
+    this.shield.alpha = 1 - (val * 0.8);
     let r = val * SHIELD_RADIUS;
     this.shield.displayWidth = r * 2;
     this.shield.displayHeight = r * 2;
     this.shieldRadius = r;
   }
-}
-
-
-function isWithin(x, y, x2, y2, dist) {
-  let dx = x - x2;
-  let dy = y - y2;
-  return dx*dx + dy*dy < dist*dist;
 }
 
 
@@ -330,7 +210,7 @@ function circleAttack(scn, x, y) {
       let angle = i * 2 * Math.PI / count;
       let vx = Math.cos(angle) * BULLET_SPEED;
       let vy = Math.sin(angle) * BULLET_SPEED;
-      scn.spawn(x, y, vx, vy);
+      scn.spawnBullet(x, y, vx, vy);
     }
   }
   let i = Math.floor(Math.random() * 2);
@@ -351,7 +231,7 @@ function spiralAttack(scn, x, y) {
   function c() {
     let vx = Math.cos(angle) * BULLET_SPEED;
     let vy = Math.sin(angle) * BULLET_SPEED;
-    scn.spawn(x, y, vx, vy);
+    scn.spawnBullet(x, y, vx, vy);
     angle += spread;
   }
   scn.time.addEvent({
