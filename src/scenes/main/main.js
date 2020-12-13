@@ -41,6 +41,9 @@ class MainScene extends Phaser.Scene {
     this.shieldTween = null;
     this.timeScale = 1;
     this.timeScaleTween = null;
+    this.health = MAX_HEALTH;
+    this.playerMoveTimer = 0;
+    this.keys = null;
   }
 
 
@@ -54,6 +57,16 @@ class MainScene extends Phaser.Scene {
 
   create() {
     this.bounds.setTo(this.game.scale.gameSize.width, this.game.scale.gameSize.height);
+    this.keys = {
+      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+      w: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      a: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+    };
 
     let n = this.add.tileSprite(0, 0, this.bounds.x, this.bounds.y, 'noise');
     n.setOrigin(0);
@@ -113,33 +126,65 @@ class MainScene extends Phaser.Scene {
 
   update(_, dt) {
     let secs = dt / 1000;
-    dt = dt * this.timeScale;
+    let scaledDt = dt * this.timeScale;
     let shieldOn = this.isShieldOn;
     this.noise.tilePositionX += dt / 20;
     this.noise.tilePositionY += dt / 40;
 
-    if (this.input.gamepad.total > 0) {
-      let pad = this.input.gamepad.getPad(0);
-      if (pad.axes.length) {
-        this.inputv.set(pad.axes[0].getValue(), pad.axes[1].getValue());
-        if (this.inputv.length() > DEAD_ZONE) {
-          this.inputv.limit(1)
-          this.player.x += this.inputv.x * PLAYER_SPEED * secs;
-          this.player.y += this.inputv.y * PLAYER_SPEED * secs;
-        }
-      }
+    this.updateInput();
+
+    if (this.inputv.x || this.inputv.y) {
+      this.player.x += this.inputv.x * PLAYER_SPEED * secs;
+      this.player.y += this.inputv.y * PLAYER_SPEED * secs;
+      this.playerStoppedTimer = 0;
+    } else {
+      this.playerStoppedTimer += dt;
     }
 
     let px = this.player.x;
     let py = this.player.y;
     let hitRadius = shieldOn ? this.shieldRadius : PLAYER_RADIUS;
-    let hasHit = this.bulletManager.updateAndCollide(dt, px, py, hitRadius);
+    let hasHit = this.bulletManager.updateAndCollide(scaledDt, px, py, hitRadius);
     if (!this.isShieldOn && hasHit) {
       // TODO Player damage
       this.shield.x = this.player.x;
       this.shield.y = this.player.y;
       this.startShield();
     }
+  }
+
+
+  updateInput() {
+    let pad = this.input.gamepad.total > 0 ? this.input.gamepad.getPad(0) : null;
+    let x = 0;
+    let y = 0;
+    this.inputv.setTo(0);
+    if (this.keys.a.isDown || this.keys.left.isDown
+         || (pad && pad.left)) {
+      x = -1;
+    }
+    if (this.keys.d.isDown || this.keys.right.isDown
+         || (pad && pad.right)) {
+      x += 1;
+    }
+    if (this.keys.w.isDown || this.keys.up.isDown
+         || (pad && pad.up)) {
+      y = -1;
+    }
+    if (this.keys.s.isDown || this.keys.down.isDown
+         || (pad && pad.down)) {
+      y += 1;
+    }
+    if (pad && pad.axes.length > 0) {
+      let padX = pad.axes[0].getValue();
+      let padY = pad.axes[1].getValue();
+      if (padX*padX + padY*padY > DEAD_ZONE*DEAD_ZONE) {
+        x = padX;
+        y = padY;
+      }
+    }
+    this.inputv.set(x, y);
+    this.inputv.limit(1);
   }
 
 
