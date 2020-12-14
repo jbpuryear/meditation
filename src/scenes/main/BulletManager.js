@@ -118,14 +118,28 @@ export default class BulletManager {
       let b2 = b.prev;
       b.update(dt);
       if (b.x < -br || b.x > this.bounds.x + br || b.y < -br || b.y > this.bounds.y + br) {
-        this.killBullet(b);
+        this.killBullet(b, false);
       } else {
         if (isWithin(x, y, b.x, b.y, radius + BULLET_RADIUS)) {
           this.killBullet(b);
-          this.frag.emitParticleAt(b.x, b.y);
           hasCollided = true;
         }
       }
+      b = b2;
+    }
+    return hasCollided;
+  }
+
+
+  collide(x, y, r) {
+    let b = this.liveBullets.tail;
+    let hasCollided = false;
+    while(b) {
+      let b2 = b.prev;
+        if (isWithin(x, y, b.x, b.y, r + BULLET_RADIUS)) {
+          this.killBullet(b);
+          hasCollided = true;
+        }
       b = b2;
     }
     return hasCollided;
@@ -144,8 +158,10 @@ export default class BulletManager {
   }
 
 
-  killBullet(b) {
+  killBullet(b, particles) {
+    if (particles === undefined) { particles = true; }
     b.kill();
+    if (particles) { this.frag.emitParticleAt(b.x, b.y); }
     this.liveBullets.remove(b);
     this.deadBullets.push(b);
   }
