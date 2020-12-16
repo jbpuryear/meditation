@@ -1,13 +1,7 @@
 import Phaser from 'phaser';
 import BulletManager from './BulletManager.js';
 import isWithin from '../../Utils/isWithin.js';
-
-//textures
-import circle from '../../assets/circle.png';
-import shadow from '../../assets/shadow.png';
-import noise from '../../assets/noise.png';
-import shield from '../../assets/shield.png';
-import COLORS from '../../COLORS.js'
+import COLORS from '../../COLORS.js';
 
 const PLAYER_SPEED = 150;
 const PLAYER_RADIUS = 1;
@@ -46,14 +40,6 @@ class MainScene extends Phaser.Scene {
     this.isShieldOn = false;
     this.timeScale = 1;
     this.health = MAX_HEALTH;
-  }
-
-
-  preload() {
-    this.load.image('circle', circle);
-    this.load.image('shadow', shadow);
-    this.load.image('noise', noise);
-    this.load.image('shield', shield);
   }
 
 
@@ -101,6 +87,21 @@ class MainScene extends Phaser.Scene {
       ease: Phaser.Math.Easing.Quintic.InOut,
     });
     this.shieldTween.pause();
+    let sparks = this.add.particles('circle');
+    this.shieldSparkles = sparks.createEmitter({
+      lifespan: { min: 40, max: 1000 },
+      on: false,
+      scale: { start: 0.3, end: 0.1, ease: 'Circular.InOut' },
+      alpha: { start: 1, end: 0.1, ease: 'Circular.InOut' },
+      speed: { min: 0, max: 100 },
+      tint: COLORS.PLAYER,
+      quantity: 100,
+      emitZone: {
+        type: 'edge',
+        source: new Phaser.Geom.Circle(0, 0, SHIELD_RADIUS),
+        quantity: 100,
+      }
+    });
 
     this.timeScaleTween = this.tweens.create({
       targets: [this, this.time],
@@ -219,7 +220,7 @@ class MainScene extends Phaser.Scene {
 
   gameOver() {
     this.time.removeAllEvents();
-    this.scene.restart();
+    this.scene.start('menu');
   }
 
 
@@ -264,6 +265,7 @@ class MainScene extends Phaser.Scene {
 
 
   stopShield() {
+    this.shieldSparkles.explode(undefined, this.shield.x, this.shield.y);
     this.isShieldOn = false;
     this.shield.visible = false;
     if (this.timeScaleTween.isPlaying()) {

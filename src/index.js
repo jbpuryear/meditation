@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 
 import COLORS from './COLORS.js';
+import load from './scenes/load.js';
+import menu from './scenes/menu.js';
 import main from './scenes/main/main.js';
 
 
@@ -16,9 +18,8 @@ const config = {
     parent: document.body,
   },
   input: { gamepad: true },
-  scene: main,
+  scene: [ load, menu, main ],
 };
 
 const game = new Phaser.Game(config);
-
 
