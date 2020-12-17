@@ -1,10 +1,13 @@
 import Phaser from 'phaser';
 import BulletManager from './BulletManager.js';
+import HealthMeter from './HealthMeter.js';
+import HealthPickup from './HealthPickup.js';
 import isWithin from '../../Utils/isWithin.js';
 import COLORS from '../../COLORS.js';
 
 const PLAYER_SPEED = 150;
-const PLAYER_RADIUS = 1;
+const PLAYER_RADIUS = 4;
+const PLAYER_PICKUP_RADIUS = 16;
 const BULLET_SPEED = 150;
 const DEAD_ZONE = 0.2;
 const MIN_ATTACK_DIST = 128;
@@ -18,7 +21,8 @@ const SPIRAL_ATTACK_MAX = 64;
 const SPIRAL_INTERVAL = 150;
 const SHIELD_DURATION = 4000;
 const SHIELD_RADIUS = 256;
-const MAX_HEALTH = 3;
+const MAX_HEALTH = 5;
+const START_HEALTH = 3;
 const HEALTH_PICKUP_RAD = 32;
 
 
@@ -39,12 +43,17 @@ class MainScene extends Phaser.Scene {
     this.shieldRadius = 0;
     this.isShieldOn = false;
     this.timeScale = 1;
-    this.health = MAX_HEALTH;
+    this.health = START_HEALTH;
   }
 
 
   create() {
     this.bounds.setTo(this.game.scale.gameSize.width, this.game.scale.gameSize.height);
+    this.shieldRadius = 0;
+    this.isShieldOn = false;
+    this.timeScale = 1;
+    this.health = START_HEALTH;
+    this.time.timeScale = 1;
     this.keys = {
       left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
       right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
@@ -64,11 +73,13 @@ class MainScene extends Phaser.Scene {
     this.add.existing(this.bulletManager.miasma);
     this.add.existing(this.bulletManager.bulletShadows);
 
-    this.healthPickup = this.add.image(0, 0, 'spritesheet', 'shield');
-    this.healthPickup.displayWidth = 48;
-    this.healthPickup.displayHeight = 48;
-    this.healthPickup.tint = COLORS.PLAYER;
-    this.spawnHealthPickup();
+    this.healthPickup = new HealthPickup(this);
+    this.healthPickup.kill();
+    this.add.existing(this.healthPickup);
+    this.add.existing(this.healthPickup.miasma);
+    this.add.existing(this.healthPickup.frag);
+    this.healthPickup.addListener('killed', this.startHealthSpawnTimer, this);
+    this.startHealthSpawnTimer();
 
     this.player = this.add.image(40, 40, 'spritesheet', 'circle');
     this.player.tint = COLORS.PLAYER;
@@ -113,9 +124,16 @@ class MainScene extends Phaser.Scene {
     this.add.existing(this.bulletManager.bulletSprites);
     this.add.existing(this.bulletManager.frag);
 
+    this.healthMeter = new HealthMeter(this, MAX_HEALTH);
+    for (let i = 0; i < this.healthMeter.hearts.length; ++i) {
+      this.add.existing(this.healthMeter.hearts[i]);
+    }
+    this.healthMeter.setHealth(this.health);
+
     let miasmaCam = this.cameras.add();
-    miasmaCam.ignore([n, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
-    this.cameras.main.ignore([this.bulletManager.miasma, this.bulletManager.bulletShadows]);
+    miasmaCam.ignore([this.healthMeter, n, this.healthPickup.frag, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
+    miasmaCam.ignore(this.healthMeter.hearts);
+    this.cameras.main.ignore([this.healthPickup.miasma, this.bulletManager.miasma, this.bulletManager.bulletShadows]);
     //Swap render order.
     this.cameras.cameras.push(this.cameras.cameras.shift());
 
@@ -130,14 +148,6 @@ class MainScene extends Phaser.Scene {
       callback: attackLoop,
       callbackScope: this,
     });
-
-    this.shieldRadius = 0;
-    this.isShieldOn = false;
-    this.timeScale = 1;
-    this.health = MAX_HEALTH;
-    this.time.timeScale = 1;
-
-    this.healthMeter = this.add.text(20, 20, this.health.toString(), { color: '#000' });
   }
 
 
@@ -157,13 +167,10 @@ class MainScene extends Phaser.Scene {
       this.player.x = Math.min(this.bounds.x - PLAYER_RADIUS, this.player.x);
       this.player.y = Math.max(PLAYER_RADIUS, this.player.y);
       this.player.y = Math.min(this.bounds.y - PLAYER_RADIUS, this.player.y);
-      this.playerStoppedTimer = 0;
-    } else {
-      this.playerStoppedTimer += dt;
     }
 
-    if (this.healthPickup.visible
-          && isWithin(this.healthPickup.x, this.healthPickup.y, this.player.x, this.player.y, HEALTH_PICKUP_RAD + PLAYER_RADIUS)) {
+    this.healthPickup.update(dt);
+    if (this.healthPickup.collide(this.player.x, this.player.y, PLAYER_PICKUP_RADIUS)) {
       this.onHealthPickup();
     }
 
@@ -175,6 +182,7 @@ class MainScene extends Phaser.Scene {
     let hasHit = this.bulletManager.updateAndCollide(scaledDt, px, py, hitRadius);
     if (!this.isShieldOn && hasHit) {
       this.health -= 1;
+      this.healthMeter.setHealth(this.health);
       if (this.health <= 0) {
         this.gameOver();
       }
@@ -220,6 +228,7 @@ class MainScene extends Phaser.Scene {
 
   gameOver() {
     this.time.removeAllEvents();
+    this.healthPickup.removeListener('killed', this.startHealthSpawnTimer);
     this.scene.start('menu');
   }
 
@@ -232,20 +241,18 @@ class MainScene extends Phaser.Scene {
   }
 
 
-  spawnHealthPickup() {
-    this.healthPickup.x = this.bounds.x * Math.random();
-    this.healthPickup.y = this.bounds.y * Math.random();
-    this.healthPickup.visible = true;
+  onHealthPickup() {
+    this.healthPickup.kill();
+    this.health += 0.25;
+    this.healthMeter.setHealth(this.health);
   }
 
 
-  onHealthPickup() {
-    this.healthPickup.visible = false;
-    this.health += 0.25;
+  startHealthSpawnTimer() {
     this.time.addEvent({
-      delay: 400,
-      callback: this.spawnHealthPickup,
-      callbackScope: this,
+      delay: 3000,
+      callback: this.healthPickup.spawn,
+      callbackScope: this.healthPickup,
     });
   }
 
