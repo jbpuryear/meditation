@@ -9,12 +9,12 @@ class MenuScene extends Phaser.Scene {
 
   create() {
     let size = this.game.scale.gameSize;
-    let n = this.add.tileSprite(0, 0, size.width, size.height, 'noise');
+    let n = this.add.tileSprite(0, 0, size.width, size.height, 'spritesheet', 'noise');
     n.setOrigin(0);
     n.alpha = 0.2;
 
     let c = { x: size.width/2, y: size.height/3 };
-    let miasma = this.add.particles('big-circle');
+    let miasma = this.add.particles('spritesheet', 'big-circle');
     miasma.createEmitter({
       x: c.x,
       y: c.y,
@@ -28,7 +28,7 @@ class MenuScene extends Phaser.Scene {
     let g = this.add.graphics();
     g.fillStyle(COLORS.MIASMA, 1);
     g.fillCircle(c.x, c.y, 128);
-    let noise = this.make.tileSprite({ x: size.width/2, y: 100, width: 800, height: 800, key: 'noise'}, false);
+    let noise = this.make.tileSprite({ x: size.width/2, y: 100, width: 800, height: 800, key: 'spritesheet', frame: 'noise'}, false);
     noise.tileScaleX = 4;
     noise.tileScaleY = 3;
     this.noise = noise;
@@ -41,7 +41,7 @@ class MenuScene extends Phaser.Scene {
     g2.fillStyle(COLORS.BULLET, 1);
     g2.fillCircle(c.x, c.y, 92);
 
-    let breathe = this.add.image(size.width/2 - 30, size.height*5/12, 'breathe');
+    let breathe = this.add.image(size.width/2 - 30, size.height*5/12, 'spritesheet', 'breathe');
     breathe.tint = COLORS.PLAYER;
 
     miasmaCam.ignore([ n, breathe, g2 ]);

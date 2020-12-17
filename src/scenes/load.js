@@ -1,12 +1,6 @@
 import Phaser from 'phaser';
-
-//textures
-import circle from '../assets/circle.png';
-import bigCircle from '../assets/big-circle.png';
-import shadow from '../assets/shadow.png';
-import noise from '../assets/noise.png';
-import shield from '../assets/shield.png';
-import breathe from '../assets/breathe.png';
+import spritesheet from '../assets/spritesheet.png';
+import atlas from '../assets/sprites.json';
 
 
 class LoadScene extends Phaser.Scene {
@@ -15,12 +9,7 @@ class LoadScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('circle', circle);
-    this.load.image('big-circle', bigCircle);
-    this.load.image('shadow', shadow);
-    this.load.image('noise', noise);
-    this.load.image('shield', shield);
-    this.load.image('breathe', breathe);
+    this.load.atlas('spritesheet', spritesheet, atlas);
   }
 
   create() {

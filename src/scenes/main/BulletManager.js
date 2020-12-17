@@ -64,7 +64,7 @@ export default class BulletManager {
     this.deadBullets = [];
     this.liveBullets = new List();
 
-    this.miasma = scene.make.particles({ key: 'circle' });
+    this.miasma = scene.make.particles({ key: 'spritesheet', frame: 'circle' });
     this.miasma.addEmitter(new FixParticleEmitter(this.miasma, {
       lifespan: MIASMA_LIFESPAN,
       on: false,
@@ -74,17 +74,17 @@ export default class BulletManager {
       tint: COLORS.MIASMA,
     }));
 
-    this.bulletShadows = scene.make.blitter({ key: 'shadow' }, false);
-    this.bulletSprites = scene.make.blitter({ key: 'circle' }, false);
+    this.bulletShadows = scene.make.blitter({ key: 'spritesheet', frame: 'shadow' }, false);
+    this.bulletSprites = scene.make.blitter({ key: 'spritesheet', frame: 'circle' }, false);
     //This next part is a hack to fix bobs not using the correct origin.
-    let t = scene.game.textures.get('circle').get();
+    let t = scene.game.textures.get('spritesheet').get('circle');
     this.bulletSprites.x -= t.width/2;
     this.bulletSprites.y -= t.height/2;
-    t = scene.game.textures.get('shadow').get();
+    t = scene.game.textures.get('spritesheet').get('shadow');
     this.bulletShadows.x -= t.width/2;
     this.bulletShadows.y -= t.height/2;
 
-    this.frag = scene.make.particles({ key: 'circle' });
+    this.frag = scene.make.particles({ key: 'spritesheet', frame: 'circle' });
     this.frag.addEmitter(new FixParticleEmitter(this.frag, {
       lifespan: { min: 100, max: 300 },
       on: false,

@@ -56,7 +56,7 @@ class MainScene extends Phaser.Scene {
       d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
 
-    let n = this.add.tileSprite(0, 0, this.bounds.x, this.bounds.y, 'noise');
+    let n = this.add.tileSprite(0, 0, this.bounds.x, this.bounds.y, 'spritesheet', 'noise');
     n.setOrigin(0);
     n.alpha = 0.2;
 
@@ -64,16 +64,16 @@ class MainScene extends Phaser.Scene {
     this.add.existing(this.bulletManager.miasma);
     this.add.existing(this.bulletManager.bulletShadows);
 
-    this.healthPickup = this.add.image(0, 0, 'shield');
+    this.healthPickup = this.add.image(0, 0, 'spritesheet', 'shield');
     this.healthPickup.displayWidth = 48;
     this.healthPickup.displayHeight = 48;
     this.healthPickup.tint = COLORS.PLAYER;
     this.spawnHealthPickup();
 
-    this.player = this.add.image(40, 40, 'circle');
+    this.player = this.add.image(40, 40, 'spritesheet', 'circle');
     this.player.tint = COLORS.PLAYER;
 
-    this.shield = this.add.image(0, 0, 'shield');
+    this.shield = this.add.image(0, 0, 'spritesheet', 'shield');
     this.shield.tint = COLORS.PLAYER;
     this.shield.visible = false;
     this.shieldTween = this.tweens.addCounter({
@@ -87,7 +87,7 @@ class MainScene extends Phaser.Scene {
       ease: Phaser.Math.Easing.Quintic.InOut,
     });
     this.shieldTween.pause();
-    let sparks = this.add.particles('circle');
+    let sparks = this.add.particles('spritesheet', 'circle');
     this.shieldSparkles = sparks.createEmitter({
       lifespan: { min: 40, max: 1000 },
       on: false,
@@ -119,7 +119,7 @@ class MainScene extends Phaser.Scene {
     //Swap render order.
     this.cameras.cameras.push(this.cameras.cameras.shift());
 
-    this.noise = this.make.tileSprite({ x: 0, y: 0, width: this.bounds.x, height: this.bounds.y, key: 'noise'}, false);
+    this.noise = this.make.tileSprite({ x: 0, y: 0, width: this.bounds.x, height: this.bounds.y, key: 'spritesheet', frame: 'noise'}, false);
     this.noise.tileScaleX = 2;
     this.noise.tileScalY = 1.5;
     this.noise.setOrigin(0, 0);
