@@ -13,7 +13,6 @@ class LoadScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.fadeOut(0, 255, 255, 255);
     this.scene.start('menu');
   }
 }

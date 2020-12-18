@@ -81,7 +81,7 @@ class MainScene extends Phaser.Scene {
     this.healthPickup.addListener('killed', this.startHealthSpawnTimer, this);
     this.startHealthSpawnTimer();
 
-    this.player = this.add.image(40, 40, 'spritesheet', 'circle');
+    this.player = this.add.image(this.bounds.x/2, this.bounds.y * 2/3, 'spritesheet', 'circle');
     this.player.tint = COLORS.PLAYER;
 
     this.shield = this.add.image(0, 0, 'spritesheet', 'shield');

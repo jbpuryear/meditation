@@ -1,5 +1,6 @@
-import Phaser from 'phaser';
+import UI from '../UI/UI.js';
 import COLORS from '../COLORS.js';
+import createMenu from '../UI/createMenu.js';
 
 
 class MenuScene extends Phaser.Scene {
@@ -44,36 +45,119 @@ class MenuScene extends Phaser.Scene {
     let breathe = this.add.image(size.width/2 - 30, size.height*5/12, 'spritesheet', 'breathe');
     breathe.tint = COLORS.PLAYER;
 
+    this.menu = createMenu(this, c.x, 720);
+    this.add.existing(this.menu);
+    this.menu.visible = false;
+    this.menu.tint = COLORS.TEXT;
+
     miasmaCam.ignore([ n, breathe, g2 ]);
     this.cameras.main.ignore([ miasma, g ]);
 
-    this.keys = {
-      start: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
-    }
-    this.ready = false;
-    this.cameras.main.fadeOut(0, 255, 255, 255);
-    this.cameras.main.once('camerafadeincomplete', function (camera) {
-      this.ready = true;
-    }, this);
-    this.time.addEvent({
-      delay: 1000,
-      callback: function() {
-        //this.cameras.main.fadeIn(6000, 255, 255, 255);
-        this.cameras.main.fadeIn(60, 255, 255, 255);
+    this.inputMap = {
+      up: {
+        wasDown: false, isDown: false, justDown: false,
+        keys: [
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+        ],
       },
-      callbackScope: this,
-    });
+      down: {
+        wasDown: false, isDown: false, justDown: false,
+        keys: [
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+        ],
+      },
+      left: {
+        wasDown: false, isDown: false, justDown: false,
+        keys: [
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+        ],
+      },
+      right: {
+        wasDown: false, isDown: false, justDown: false,
+        keys: [
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+        ],
+      },
+      action: {
+        wasDown: false, isDown: false, justDown: false,
+        keys: [
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X),
+        ],
+      },
+      cancel: {
+        wasDown: false, isDown: false, justDown: false,
+        keys: [
+          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
+        ],
+      },
+    }
+    this.state = 'FADE_IN';
+    this.cameras.main.once('camerafadeincomplete', function (camera) {
+      this.clearFadeIn();
+    }, this);
+    this.cameras.main.fadeIn(5000, 255, 255, 255);
+
+    // Another Phaser bug. If we don't call this when we reenter the scene the gamepad will
+    // still have the same values as when we exited, i.e. it will think A or start is still pushed.
+    this.input.gamepad.update();
   }
 
 
   update(_, dt) {
     this.noise.tilePositionX += dt / 40;
     this.noise.tilePositionY += dt / 60;
+    this.updateInput();
 
-    let pad = this.input.gamepad.total > 0 ? this.input.gamepad.getPad(0) : null;
-    if (this.ready && (this.keys.start.isDown || (pad && pad.A))) {
-      this.scene.start('main');
+    if (this.state === 'FADE_IN') {
+      if (this.inputMap.action.justDown) {
+        this.clearFadeIn();
+      }
+    } else if (this.state === 'MAIN') {
+      let imap = this.inputMap;
+      if (imap.up.justDown) { this.menu.handleInput(UI.UP); }
+      if (imap.down.justDown) { this.menu.handleInput(UI.DOWN); }
+      if (imap.left.justDown) { this.menu.handleInput(UI.LEFT); }
+      if (imap.right.justDown) { this.menu.handleInput(UI.RIGHT); }
+      if (imap.action.justDown) { this.menu.handleInput(UI.ACTION); }
+      if (imap.cancel.justDown) { this.menu.handleInput(UI.CANCEL); }
     }
+  }
+
+
+  updateInput() {
+    let imap = this.inputMap;
+    Object.values(imap).forEach((input)=> {
+      input.wasDown = input.isDown;
+      input.isDown = input.keys.some((k)=> k.isDown);
+    })
+    let pad = this.input.gamepad.total > 0 ? this.input.gamepad.getPad(0) : null;
+    if (pad) {
+      let threshold = 0.8;
+      let axes = pad.getAxisTotal() >= 2;
+      imap.left.isDown = imap.left.isDown || pad.left || (axes && pad.getAxisValue(0) < -threshold);
+      imap.right.isDown = imap.right.isDown || pad.right || (axes && pad.getAxisValue(0) > threshold);
+      imap.up.isDown = imap.up.isDown || pad.up || (axes && pad.getAxisValue(1) < -threshold);
+      imap.down.isDown = imap.down.isDown || pad.down || (axes && pad.getAxisValue(1) > threshold);
+      imap.action.isDown = imap.action.isDown || pad.A;
+      imap.cancel.isDown = imap.cancel.isDown || (pad.getButtonTotal() >= 2 && pad.getButtonValue(1));
+    }
+    Object.values(imap).forEach((input)=> {
+      input.justDown = input.isDown && !input.wasDown;
+    });
+  }
+
+
+  clearFadeIn() {
+    this.cameras.main.removeListener(this.clearFadeIn);
+    this.cameras.main.fadeEffect.reset();
+    this.menu.visible = true;
+    this.state = 'MAIN';
   }
 }
 
