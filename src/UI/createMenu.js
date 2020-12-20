@@ -8,21 +8,44 @@ export default function createMenu(scene, x, y) {
   main.addEntry(new UI.Button(scene, 'START', function() {
     scene.scene.start('main');
   }));
-  main.addEntry(new UI.Button(scene, 'OPTIONS', function() {
-    ui.pushList('options');
-  }));
   ui.addList('main', main);
 
-  let options = new UI.UIList(scene);
-  let theme = new UI.Spinner(scene, 'THEME', function(value) {
-    console.log(value);
+  {
+  let difficulty = new UI.Spinner(scene, 'MODE', function(value) {
+    scene.game.registry.set('difficulty', value);
   });
-  theme.addOption(scene, 'DEFAULT', COLORS);
-  theme.setOption(0);
+  const current = scene.game.registry.get('difficulty');
+  let i = 0;
+  let j = 0;
+  let difficulties = { PEACEFUL: 0, NORMAL: 1, MASTERY: 2 };
+  for (let k in difficulties) {
+    difficulty.addOption(scene, k, difficulties[k]);
+    if (current === difficulties[k]) {
+      j = i;
+    }
+    i++;
+  }
+  difficulty.setOption(j);
+  main.addEntry(difficulty);
+  }
 
-  options.addEntry(theme);
-  ui.addList('options', options);
-
+  {
+  let theme = new UI.Spinner(scene, 'THEME', function(value) {
+    scene.setColors(value);
+  });
+  const current = scene.game.registry.get('theme');
+  let i = 0;
+  let j = 0;
+  for (let k in COLORS) {
+    theme.addOption(scene, k, COLORS[k]);
+    if (current === COLORS[k]) {
+      j = i;
+    }
+    i++;
+  }
+  theme.setOption(j);
+  main.addEntry(theme);
+  }
 
   ui.pushList('main');
   return ui;

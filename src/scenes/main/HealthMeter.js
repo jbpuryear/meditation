@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import COLORS from '../../COLORS.js';
 
 const PADDING = 40;
 const SPACING = 16;
@@ -8,13 +7,14 @@ const SIZE = 32;
 
 export default class HealthMeter {
   constructor(scene, maxHealth) {
+    const colors = scene.game.registry.get('theme');
     this.maxHealth = maxHealth;
     this.hearts = new Array(maxHealth);
     for (let i = 0; i < maxHealth; ++i) {
       let heart = scene.make.image({ x: PADDING + (SIZE + SPACING) * i, y: PADDING, key: 'spritesheet', frame: 'heart' });
       heart.displayWidth = SIZE;
       heart.displayHeight = SIZE;
-      heart.tint = COLORS.PLAYER;
+      heart.tint = colors.PLAYER;
       this.hearts[i] = heart;
     }
   }

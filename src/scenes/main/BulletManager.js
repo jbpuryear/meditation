@@ -1,6 +1,5 @@
 import FixParticleEmitter from './FixParticleEmitter.js';
 import List from '../../Utils/List.js';
-import COLORS from '../../COLORS.js';
 import isWithin from '../../Utils/isWithin.js';
 
 const BULLET_POOL_SIZE = 2000;
@@ -56,6 +55,7 @@ class Bullet {
 
 export default class BulletManager {
   constructor(scene) {
+    const colors = scene.game.registry.get('theme');
     this.bounds = {
       x: scene.game.scale.gameSize.width,
       y: scene.game.scale.gameSize.height
@@ -71,7 +71,7 @@ export default class BulletManager {
       maxParticles: MAX_MIASMA_PARTICLES,
       scale: { start: 1.5, end: 0.1, ease: 'Circular.InOut' },
       speed: { min: 0, max: 60 },
-      tint: COLORS.MIASMA,
+      tint: colors.MIASMA,
     }));
 
     this.bulletShadows = scene.make.blitter({ key: 'spritesheet', frame: 'shadow' }, false);
@@ -92,12 +92,12 @@ export default class BulletManager {
       quantity: 10,
       scale: { start: 1.2, end: 0.1, ease: 'Circular.InOut' },
       speed: { min: 100, max: 200 },
-      tint: COLORS.BULLET,
+      tint: colors.BULLET,
     }));
 
     // Another hack to get around a Phaser bug. Blitter Bob tints have their rgb reversed.
-    let miasmaColor = ((COLORS.MIASMA & 0xff0000) >> 16) | (COLORS.MIASMA & 0xff00) | ((COLORS.MIASMA & 0xff) << 16);
-    let bulletColor = ((COLORS.BULLET & 0xff0000) >> 16) | (COLORS.BULLET & 0xff00) | ((COLORS.BULLET & 0xff) << 16);
+    let miasmaColor = ((colors.MIASMA & 0xff0000) >> 16) | (colors.MIASMA & 0xff00) | ((colors.MIASMA & 0xff) << 16);
+    let bulletColor = ((colors.BULLET & 0xff0000) >> 16) | (colors.BULLET & 0xff00) | ((colors.BULLET & 0xff) << 16);
     for (let i = 0; i < BULLET_POOL_SIZE; ++i) {
       let shadow = this.bulletShadows.create(0, 0);
       shadow.tint = miasmaColor;

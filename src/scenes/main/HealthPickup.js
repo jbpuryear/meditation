@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import isWithin from '../../Utils/isWithin.js';
-import COLORS from '../../COLORS.js';
 
 
 const SIZE = 48;
@@ -12,9 +11,10 @@ const LIFETIME = 10000;
 export default class HealthPickup extends Phaser.GameObjects.Image {
   constructor(scene) {
     super(scene, 0, 0, 'spritesheet', 'heart');
+    const colors = scene.game.registry.get('theme');
     this.displayWidth = SIZE;
     this.displayHeight = SIZE;
-    this.tint = COLORS.PLAYER;
+    this.tint = colors.PLAYER;
     this.vx = 0;
     this.vy = 0;
     this.lifetime = LIFETIME;
@@ -25,7 +25,7 @@ export default class HealthPickup extends Phaser.GameObjects.Image {
       lifespan: 2000,
       scale: { start: 0.75, end: 0.1, ease: 'Circular.InOut' },
       speed: { min: 0, max: 30 },
-      tint: COLORS.PLAYER,
+      tint: colors.PLAYER,
       frequency: 500/2,
       follow: this,
     });
@@ -33,7 +33,7 @@ export default class HealthPickup extends Phaser.GameObjects.Image {
       lifespan: { min: 200, max: 500 },
       scale: { start: 0.75, end: 0.1, ease: 'Circular.InOut' },
       speed: { min: 40, max: 80 },
-      tint: COLORS.PLAYER,
+      tint: colors.PLAYER,
       quantity: 20,
       on: false,
       follow: this,

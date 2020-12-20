@@ -10,13 +10,10 @@ class MenuScene extends Phaser.Scene {
 
   create() {
     let size = this.game.scale.gameSize;
-    let n = this.add.tileSprite(0, 0, size.width, size.height, 'spritesheet', 'noise');
-    n.setOrigin(0);
-    n.alpha = 0.2;
 
     let c = { x: size.width/2, y: size.height/3 };
     let miasma = this.add.particles('spritesheet', 'big-circle');
-    miasma.createEmitter({
+    this.miasmaEmitter = miasma.createEmitter({
       x: c.x,
       y: c.y,
       lifespan: 500,
@@ -26,32 +23,32 @@ class MenuScene extends Phaser.Scene {
       speed: { min: 400, max: 600 },
       tint: COLORS.MIASMA,
     });
-    let g = this.add.graphics();
-    g.fillStyle(COLORS.MIASMA, 1);
-    g.fillCircle(c.x, c.y, 128);
-    let noise = this.make.tileSprite({ x: size.width/2, y: 100, width: 800, height: 800, key: 'spritesheet', frame: 'noise'}, false);
-    noise.tileScaleX = 4;
-    noise.tileScaleY = 3;
-    this.noise = noise;
+    this.bulletShadow = this.add.image(c.x, c.y, 'spritesheet', 'big-circle');
+    this.bulletShadow.displayWidth = 256;
+    this.bulletShadow.displayHeight = 256;
+
+    this.noise = this.make.tileSprite({ x: size.width/2, y: 100, width: 800, height: 800, key: 'spritesheet', frame: 'noise'}, false);
+    this.noise.tileScaleX = 4;
+    this.noise.tileScaleY = 3;
+
     let miasmaCam = this.cameras.add();
+    this.miasmaCam = miasmaCam;
     // Swap render order
     this.cameras.cameras.push(this.cameras.cameras.shift());
-    miasmaCam.setMask(new Phaser.Display.Masks.BitmapMask(this, noise));
+    miasmaCam.setMask(new Phaser.Display.Masks.BitmapMask(this, this.noise));
 
-    let g2 = this.add.graphics();
-    g2.fillStyle(COLORS.BULLET, 1);
-    g2.fillCircle(c.x, c.y, 92);
+    this.bullet = this.add.image(c.x, c.y, 'spritesheet', 'big-circle');
+    this.bullet.displayWidth = 184;
+    this.bullet.displayHeight = 184;
 
-    let breathe = this.add.image(size.width/2 - 30, size.height*5/12, 'spritesheet', 'breathe');
-    breathe.tint = COLORS.PLAYER;
+    this.breathe = this.add.image(size.width/2 - 30, size.height*5/12, 'spritesheet', 'breathe');
 
     this.menu = createMenu(this, c.x, 720);
     this.add.existing(this.menu);
     this.menu.visible = false;
-    this.menu.tint = COLORS.TEXT;
 
-    miasmaCam.ignore([ n, breathe, g2 ]);
-    this.cameras.main.ignore([ miasma, g ]);
+    miasmaCam.ignore([ this.breathe, this.bullet ]);
+    this.cameras.main.ignore([ miasma, this.bulletShadow ]);
 
     this.inputMap = {
       up: {
@@ -106,6 +103,7 @@ class MenuScene extends Phaser.Scene {
     // Another Phaser bug. If we don't call this when we reenter the scene the gamepad will
     // still have the same values as when we exited, i.e. it will think A or start is still pushed.
     this.input.gamepad.update();
+    this.updateColors();
   }
 
 
@@ -158,6 +156,35 @@ class MenuScene extends Phaser.Scene {
     this.cameras.main.fadeEffect.reset();
     this.menu.visible = true;
     this.state = 'MAIN';
+  }
+
+
+  setColors(theme) {
+    this.game.registry.set('theme', theme);
+    this.updateColors();
+  }
+
+
+  updateColors() {
+    const colors = this.game.registry.get('theme');
+    this.game.config.backgroundColor = Phaser.Display.Color.ValueToColor(colors.BACKGROUND);
+    this.game.renderer.config.backgroundColor = this.game.config.backgroundColor;
+    this.miasmaEmitter.setTint(colors.MIASMA);
+    this.bulletShadow.tint = colors.MIASMA;
+    this.bullet.tint = colors.BULLET;
+    this.breathe.tint = colors.PLAYER;
+    this.updateMenuColors();
+  }
+
+
+  updateMenuColors(target) {
+    target = target || this.menu;
+    const color = this.game.registry.get('theme').TEXT;
+    if (target instanceof Phaser.GameObjects.Container) {
+      target.iterate(this.updateMenuColors, this);
+    } else if (target.setTint) {
+      target.setTint(color);
+    }
   }
 }
 

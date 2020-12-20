@@ -23,7 +23,6 @@ const config = {
   type: Phaser.WEBGL,
   width: 1920,
   height: 1080,
-  backgroundColor: COLORS.BACKGROUND,
   render: { batchSize: 4096 },
   scale: {
     mode: Phaser.Scale.FIT,

@@ -3,7 +3,6 @@ import BulletManager from './BulletManager.js';
 import HealthMeter from './HealthMeter.js';
 import HealthPickup from './HealthPickup.js';
 import isWithin from '../../Utils/isWithin.js';
-import COLORS from '../../COLORS.js';
 
 const PLAYER_SPEED = 150;
 const PLAYER_RADIUS = 4;
@@ -11,8 +10,6 @@ const PLAYER_PICKUP_RADIUS = 16;
 const BULLET_SPEED = 150;
 const DEAD_ZONE = 0.2;
 const MIN_ATTACK_DIST = 128;
-const ATTACK_TIME_MAX = 1200;
-const ATTACK_TIME_MIN = 40;
 const CIRCLE_ATTACK_MIN = 6;
 const CIRCLE_ATTACK_MAX = 16;
 const CIRCLE_INTERVAL = 400;
@@ -44,10 +41,28 @@ class MainScene extends Phaser.Scene {
     this.isShieldOn = false;
     this.timeScale = 1;
     this.health = START_HEALTH;
+    this.attackTimeMin = 0;
+    this.atackTimeMax = 0;
   }
 
 
   create() {
+    const colors = this.game.registry.get('theme');
+    const diff = this.game.registry.get('difficulty');
+    switch (diff) {
+      case 0:
+        this.attackTimeMin = 400;
+        this.attackTimeMax = 4000;
+        break;
+      case 1:
+        this.attackTimeMin = 80;
+        this.attackTimeMax = 1600;
+        break;
+      case 2:
+        this.attackTimeMin = 40;
+        this.attackTimeMax = 1200;
+        break;
+    }
     this.bounds.setTo(this.game.scale.gameSize.width, this.game.scale.gameSize.height);
     this.shieldRadius = 0;
     this.isShieldOn = false;
@@ -65,10 +80,6 @@ class MainScene extends Phaser.Scene {
       d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
 
-    let n = this.add.tileSprite(0, 0, this.bounds.x, this.bounds.y, 'spritesheet', 'noise');
-    n.setOrigin(0);
-    n.alpha = 0.2;
-
     this.bulletManager = new BulletManager(this);
     this.add.existing(this.bulletManager.miasma);
     this.add.existing(this.bulletManager.bulletShadows);
@@ -82,10 +93,10 @@ class MainScene extends Phaser.Scene {
     this.startHealthSpawnTimer();
 
     this.player = this.add.image(this.bounds.x/2, this.bounds.y * 2/3, 'spritesheet', 'circle');
-    this.player.tint = COLORS.PLAYER;
+    this.player.tint = colors.PLAYER;
 
     this.shield = this.add.image(0, 0, 'spritesheet', 'shield');
-    this.shield.tint = COLORS.PLAYER;
+    this.shield.tint = colors.PLAYER;
     this.shield.visible = false;
     this.shieldTween = this.tweens.addCounter({
       from: 0.1,
@@ -105,7 +116,7 @@ class MainScene extends Phaser.Scene {
       scale: { start: 0.3, end: 0.1, ease: 'Circular.InOut' },
       alpha: { start: 1, end: 0.1, ease: 'Circular.InOut' },
       speed: { min: 0, max: 100 },
-      tint: COLORS.PLAYER,
+      tint: colors.PLAYER,
       quantity: 100,
       emitZone: {
         type: 'edge',
@@ -131,7 +142,7 @@ class MainScene extends Phaser.Scene {
     this.healthMeter.setHealth(this.health);
 
     let miasmaCam = this.cameras.add();
-    miasmaCam.ignore([this.healthMeter, n, this.healthPickup.frag, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
+    miasmaCam.ignore([this.healthMeter, this.healthPickup.frag, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
     miasmaCam.ignore(this.healthMeter.hearts);
     this.cameras.main.ignore([this.healthPickup.miasma, this.bulletManager.miasma, this.bulletManager.bulletShadows]);
     //Swap render order.
@@ -243,7 +254,7 @@ class MainScene extends Phaser.Scene {
 
   onHealthPickup() {
     this.healthPickup.kill();
-    this.health += 0.25;
+    this.health = Math.min(this.health + 0.25, MAX_HEALTH);
     this.healthMeter.setHealth(this.health);
   }
 
@@ -310,7 +321,7 @@ function attackLoop() {
     spiralAttack(this, x, y);
   }
   this.time.addEvent({
-    delay: Math.random() * (ATTACK_TIME_MAX - ATTACK_TIME_MIN) + ATTACK_TIME_MIN,
+    delay: Math.random() * (this.attackTimeMax - this.attackTimeMin) + this.attackTimeMin,
     callback: attackLoop,
     callbackScope: this,
   });

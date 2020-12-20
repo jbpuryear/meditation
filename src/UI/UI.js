@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import COLORS from '../COLORS.js';
 
 
-const STYLE = { color: '#'+COLORS.TEXT.toString(16), fontFamily: 'monument-valley', fontSize: '72px' }
+const STYLE = { fontFamily: 'monument-valley', fontSize: '72px' }
 
 
 class Button extends Phaser.GameObjects.Text {
@@ -46,7 +46,6 @@ class Spinner extends Phaser.GameObjects.Container {
     this.currentOption = i;
     if (this.options[i]) {
       this.options[i].visible = true;
-      console.log('kweh');
     }
   }
 
@@ -59,13 +58,20 @@ class Spinner extends Phaser.GameObjects.Container {
     } else if (i === UI.RIGHT) {
       this.currentOption = (this.currentOption + 1) % this.options.length;
       this.setOption(this.currentOption);
-      if (this.callback) { this.callback(this.options[this.currentOption].value); }
+      const val = this.options[this.currentOption].value;
+      if (this.callback) { this.callback(val); }
     }
   }
 
 
   getLeftCenter() {
     return this.label.getLeftCenter();
+  }
+
+
+  getRightCenter() {
+    const opt = this.options[this.currentOption];
+    return opt ? opt.getRightCenter() : this.label.getLeftCenter();
   }
 }
 
@@ -76,9 +82,11 @@ class UIList extends Phaser.GameObjects.Container {
     this.entries = [];
     this.currentEntry = 0;
     this.cursor = scene.make.image({ x: 0, y: 0, key: 'spritesheet', frame: 'circle' }, false);
+    this.leftArrow = scene.make.image({ x: 0, y: 0, key: 'spritesheet', frame: 'left' }, false);
+    this.rightArrow = scene.make.image({ x: 0, y: 0, key: 'spritesheet', frame: 'right' }, false);
     this.cursor.tint = COLORS.TEXT;
     this.cursor.setScale(0.4);
-    this.add(this.cursor);
+    this.add([ this.cursor, this.leftArrow, this.rightArrow ]);
   }
 
 
@@ -102,35 +110,48 @@ class UIList extends Phaser.GameObjects.Container {
 
 
   setCursor() {
+    const pad = 24;
+    const yFix = -4;
     let entry = this.entries[this.currentEntry];
+    this.cursor.visible = false;
+    this.leftArrow.visible = false;
+    this.rightArrow.visible = false;
     if (!entry) {
-      this.cursor.visible = false;
-      return;
+      return
     }
-    let p = entry.getLeftCenter();
-    this.cursor.x = p.x - 24;
-    this.cursor.y = p.y - 4;
+    if (entry instanceof Spinner) {
+      this.leftArrow.x = entry.getLeftCenter().x - pad;
+      this.leftArrow.y = entry.y + yFix;
+      this.rightArrow.x = entry.getRightCenter().x + pad;
+      this.rightArrow.y = entry.y + yFix;
+      this.leftArrow.visible = true;
+      this.rightArrow.visible = true;
+    } else if (entry instanceof Button) {
+      let p = entry.getLeftCenter();
+      this.cursor.x = p.x - pad;
+      this.cursor.y = p.y + yFix;
+      this.cursor.visible = true;
+    }
   }
 
 
   handleInput(i) {
     let l = this.entries.length;
-    if (i === UI.UP) {
+    if (i === UI.DOWN) {
       if (l > 0) {
         this.currentEntry = (this.currentEntry + 1) % l;
         this.setCursor();
       }
-      return;
-    }
-    if (i === UI.DOWN) {
+    } else if (i === UI.UP) {
       if (l > 0) {
         this.currentEntry = this.currentEntry > 0 ? this.currentEntry -1 : l-1;
         this.setCursor();
       }
-      return;
+    } else {
+      let entry = this.entries[this.currentEntry];
+      if (entry) { entry.handleInput(i); }
     }
-    let entry = this.entries[this.currentEntry];
-    if (entry) { entry.handleInput(i); }
+    this.setCursor();
   }
 }
 
