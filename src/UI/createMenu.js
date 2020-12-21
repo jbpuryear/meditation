@@ -6,12 +6,13 @@ export default function createMenu(scene, x, y) {
   let ui = new UI(scene, x, y);
   let main= new UI.UIList(scene);
   main.addEntry(new UI.Button(scene, 'START', function() {
-    scene.scene.start('main');
+    scene.startMain();
   }));
   ui.addList('main', main);
 
   {
   let difficulty = new UI.Spinner(scene, 'MODE', function(value) {
+    scene.mySounds.blip.play();
     scene.game.registry.set('difficulty', value);
   });
   const current = scene.game.registry.get('difficulty');
@@ -31,6 +32,7 @@ export default function createMenu(scene, x, y) {
 
   {
   let theme = new UI.Spinner(scene, 'THEME', function(value) {
+    scene.mySounds.blip.play();
     scene.setColors(value);
   });
   const current = scene.game.registry.get('theme');

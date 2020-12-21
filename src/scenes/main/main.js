@@ -63,6 +63,14 @@ class MainScene extends Phaser.Scene {
         this.attackTimeMax = 1200;
         break;
     }
+
+    this.mySounds = {
+      pickup: this.sound.add('pickup', { volume: 1 }),
+      hit: this.sound.add('hit', { volume: 0.6 }),
+      gameOver: this.sound.add('game-over', { volume: 0.8 }),
+      chill: this.sound.add('chill'),
+    }
+
     this.bounds.setTo(this.game.scale.gameSize.width, this.game.scale.gameSize.height);
     this.shieldRadius = 0;
     this.isShieldOn = false;
@@ -141,8 +149,19 @@ class MainScene extends Phaser.Scene {
     }
     this.healthMeter.setHealth(this.health);
 
+    let flashEffect = this.add.rectangle(0, 0, this.bounds.x, this.bounds.y, 0xffffff);
+    flashEffect.setOrigin(0);
+    flashEffect.alpha = 0;
+    this.flashTween = this.add.tween({
+      targets: flashEffect,
+      alpha: { from: 0.3, to: 0 },
+      ease: 'Cubic.easeOut',
+      duration: 500,
+      paused: true,
+    });
+
     let miasmaCam = this.cameras.add();
-    miasmaCam.ignore([this.healthMeter, this.healthPickup.frag, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
+    miasmaCam.ignore([flashEffect, this.healthMeter, this.healthPickup.frag, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
     miasmaCam.ignore(this.healthMeter.hearts);
     this.cameras.main.ignore([this.healthPickup.miasma, this.bulletManager.miasma, this.bulletManager.bulletShadows]);
     //Swap render order.
@@ -159,10 +178,12 @@ class MainScene extends Phaser.Scene {
       callback: attackLoop,
       callbackScope: this,
     });
+    this.mySounds.chill.play();
   }
 
 
   update(_, dt) {
+    if (this.waiting) { return; }
     let secs = dt / 1000;
     let scaledDt = dt * this.timeScale;
     let shieldOn = this.isShieldOn;
@@ -194,10 +215,17 @@ class MainScene extends Phaser.Scene {
     if (!this.isShieldOn && hasHit) {
       this.health -= 1;
       this.healthMeter.setHealth(this.health);
+      this.mySounds.hit.play();
       if (this.health <= 0) {
         this.gameOver();
+      } else {
+        if (this.flashTween.isPlaying()) {
+          this.flashTween.restart();
+        } else {
+          this.flashTween.play();
+        }
+        this.startShield(this.player.x, this.player.y);
       }
-      this.startShield(this.player.x, this.player.y);
     }
     this.healthMeter.text = this.health.toString();
   }
@@ -238,6 +266,8 @@ class MainScene extends Phaser.Scene {
 
 
   gameOver() {
+    this.mySounds.chill.stop();
+    this.mySounds.gameOver.play();
     this.time.removeAllEvents();
     this.healthPickup.removeListener('killed', this.startHealthSpawnTimer);
     this.scene.start('menu');
@@ -253,6 +283,7 @@ class MainScene extends Phaser.Scene {
 
 
   onHealthPickup() {
+    this.mySounds.pickup.play();
     this.healthPickup.kill();
     this.health = Math.min(this.health + 0.25, MAX_HEALTH);
     this.healthMeter.setHealth(this.health);

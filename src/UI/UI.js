@@ -22,8 +22,9 @@ class Button extends Phaser.GameObjects.Text {
 class Spinner extends Phaser.GameObjects.Container {
   constructor(scene, label, callback) {
     super(scene);
-    this.label = scene.make.text({ style: STYLE, text: label + ': ' }, false);
+    this.label = scene.make.text({ style: STYLE, text: label }, false);
     this.label.setOrigin(1, 0.5);
+    this.label.x = -8;
     this.add(this.label);
     this.options = [];
     this.currentOption = 0;
@@ -33,6 +34,7 @@ class Spinner extends Phaser.GameObjects.Container {
 
   addOption(scene, label, value) {
     const o = scene.make.text({ style: STYLE, text: label }, false);
+    o.x = 8;
     o.value = value;
     o.visible = false;
     o.setOrigin(0, 0.5);
@@ -140,12 +142,10 @@ class UIList extends Phaser.GameObjects.Container {
     if (i === UI.DOWN) {
       if (l > 0) {
         this.currentEntry = (this.currentEntry + 1) % l;
-        this.setCursor();
       }
     } else if (i === UI.UP) {
       if (l > 0) {
         this.currentEntry = this.currentEntry > 0 ? this.currentEntry -1 : l-1;
-        this.setCursor();
       }
     } else {
       let entry = this.entries[this.currentEntry];

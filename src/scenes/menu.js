@@ -100,6 +100,11 @@ class MenuScene extends Phaser.Scene {
     }, this);
     this.cameras.main.fadeIn(5000, 255, 255, 255);
 
+    this.mySounds = {
+      start: this.sound.add('start'),
+      blip: this.sound.add('blip', { volume: 0.4 }),
+      balance: this.sound.add('balance'),
+    };
     // Another Phaser bug. If we don't call this when we reenter the scene the gamepad will
     // still have the same values as when we exited, i.e. it will think A or start is still pushed.
     this.input.gamepad.update();
@@ -118,8 +123,14 @@ class MenuScene extends Phaser.Scene {
       }
     } else if (this.state === 'MAIN') {
       let imap = this.inputMap;
-      if (imap.up.justDown) { this.menu.handleInput(UI.UP); }
-      if (imap.down.justDown) { this.menu.handleInput(UI.DOWN); }
+      if (imap.up.justDown) {
+        this.mySounds.blip.play();
+        this.menu.handleInput(UI.UP);
+      }
+      if (imap.down.justDown) {
+        this.mySounds.blip.play();
+        this.menu.handleInput(UI.DOWN);
+      }
       if (imap.left.justDown) { this.menu.handleInput(UI.LEFT); }
       if (imap.right.justDown) { this.menu.handleInput(UI.RIGHT); }
       if (imap.action.justDown) { this.menu.handleInput(UI.ACTION); }
@@ -152,6 +163,7 @@ class MenuScene extends Phaser.Scene {
 
 
   clearFadeIn() {
+    this.mySounds.balance.play();
     this.cameras.main.removeListener(this.clearFadeIn);
     this.cameras.main.fadeEffect.reset();
     this.menu.visible = true;
@@ -185,6 +197,28 @@ class MenuScene extends Phaser.Scene {
     } else if (target.setTint) {
       target.setTint(color);
     }
+  }
+
+
+  startMain() {
+    const bal = this.mySounds.balance;
+    if ('volume' in bal) {
+      this.add.tween({
+        targets: bal,
+        volume: 0,
+        duration: 500,
+        callback: bal.stop,
+        callbackScope: bal,
+      });
+    } else {
+      this.mySounds.balance.stop();
+    }
+    this.state = 'FADE_OUT';
+    this.mySounds.start.play();
+    this.cameras.main.once('camerafadeoutcomplete', function() {
+      this.scene.start('main');
+    }, this);
+    this.cameras.main.fadeOut(1000, 255, 255, 255);
   }
 }
 
