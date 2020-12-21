@@ -1,3 +1,4 @@
+import InputMap from '../InputMap.js';
 import UI from '../UI/UI.js';
 import COLORS from '../COLORS.js';
 import createMenu from '../UI/createMenu.js';
@@ -9,6 +10,7 @@ class MenuScene extends Phaser.Scene {
   }
 
   create() {
+    this.inputMap = new InputMap(this);
     let size = this.game.scale.gameSize;
 
     let c = { x: size.width/2, y: size.height/3 };
@@ -50,50 +52,6 @@ class MenuScene extends Phaser.Scene {
     miasmaCam.ignore([ this.breathe, this.bullet ]);
     this.cameras.main.ignore([ miasma, this.bulletShadow ]);
 
-    this.inputMap = {
-      up: {
-        wasDown: false, isDown: false, justDown: false,
-        keys: [
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-        ],
-      },
-      down: {
-        wasDown: false, isDown: false, justDown: false,
-        keys: [
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-        ],
-      },
-      left: {
-        wasDown: false, isDown: false, justDown: false,
-        keys: [
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-        ],
-      },
-      right: {
-        wasDown: false, isDown: false, justDown: false,
-        keys: [
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-        ],
-      },
-      action: {
-        wasDown: false, isDown: false, justDown: false,
-        keys: [
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X),
-        ],
-      },
-      cancel: {
-        wasDown: false, isDown: false, justDown: false,
-        keys: [
-          this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
-        ],
-      },
-    }
     this.state = 'FADE_IN';
     this.cameras.main.once('camerafadeincomplete', function (camera) {
       this.clearFadeIn();
@@ -115,14 +73,14 @@ class MenuScene extends Phaser.Scene {
   update(_, dt) {
     this.noise.tilePositionX += dt / 40;
     this.noise.tilePositionY += dt / 60;
-    this.updateInput();
+    this.inputMap.update();
 
     if (this.state === 'FADE_IN') {
-      if (this.inputMap.action.justDown) {
+      if (this.inputMap.actions.action.justDown) {
         this.clearFadeIn();
       }
     } else if (this.state === 'MAIN') {
-      let imap = this.inputMap;
+      let imap = this.inputMap.actions;
       if (imap.up.justDown) {
         this.mySounds.blip.play();
         this.menu.handleInput(UI.UP);
@@ -136,29 +94,6 @@ class MenuScene extends Phaser.Scene {
       if (imap.action.justDown) { this.menu.handleInput(UI.ACTION); }
       if (imap.cancel.justDown) { this.menu.handleInput(UI.CANCEL); }
     }
-  }
-
-
-  updateInput() {
-    let imap = this.inputMap;
-    Object.values(imap).forEach((input)=> {
-      input.wasDown = input.isDown;
-      input.isDown = input.keys.some((k)=> k.isDown);
-    })
-    let pad = this.input.gamepad.total > 0 ? this.input.gamepad.getPad(0) : null;
-    if (pad) {
-      let threshold = 0.8;
-      let axes = pad.getAxisTotal() >= 2;
-      imap.left.isDown = imap.left.isDown || pad.left || (axes && pad.getAxisValue(0) < -threshold);
-      imap.right.isDown = imap.right.isDown || pad.right || (axes && pad.getAxisValue(0) > threshold);
-      imap.up.isDown = imap.up.isDown || pad.up || (axes && pad.getAxisValue(1) < -threshold);
-      imap.down.isDown = imap.down.isDown || pad.down || (axes && pad.getAxisValue(1) > threshold);
-      imap.action.isDown = imap.action.isDown || pad.A;
-      imap.cancel.isDown = imap.cancel.isDown || (pad.getButtonTotal() >= 2 && pad.getButtonValue(1));
-    }
-    Object.values(imap).forEach((input)=> {
-      input.justDown = input.isDown && !input.wasDown;
-    });
   }
 
 

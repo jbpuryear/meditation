@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import InputMap from '../../InputMap.js';
 import BulletManager from './BulletManager.js';
 import HealthMeter from './HealthMeter.js';
 import HealthPickup from './HealthPickup.js';
@@ -34,19 +35,19 @@ class MainScene extends Phaser.Scene {
     this.shieldTween = null;
     this.healthPickup = null;
     this.healthMeter = null;
-    this.keys = null;
     this.bounds = new Phaser.Math.Vector2();
-    this.inputv = new Phaser.Math.Vector2();
     this.shieldRadius = 0;
     this.isShieldOn = false;
     this.timeScale = 1;
     this.health = START_HEALTH;
     this.attackTimeMin = 0;
     this.atackTimeMax = 0;
+    this.inputMap = null;
   }
 
 
   create() {
+    this.inputMap = new InputMap(this);
     const colors = this.game.registry.get('theme');
     const diff = this.game.registry.get('difficulty');
     switch (diff) {
@@ -77,16 +78,6 @@ class MainScene extends Phaser.Scene {
     this.timeScale = 1;
     this.health = START_HEALTH;
     this.time.timeScale = 1;
-    this.keys = {
-      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
-      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
-      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
-      w: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      a: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-    };
 
     this.bulletManager = new BulletManager(this);
     this.add.existing(this.bulletManager.miasma);
@@ -190,11 +181,12 @@ class MainScene extends Phaser.Scene {
     this.noise.tilePositionX += dt / 20;
     this.noise.tilePositionY += dt / 40;
 
-    this.updateInput();
+    this.inputMap.update();
 
-    if (this.inputv.x || this.inputv.y) {
-      this.player.x += this.inputv.x * PLAYER_SPEED * secs;
-      this.player.y += this.inputv.y * PLAYER_SPEED * secs;
+    const v = this.inputMap.moveVec;
+    if (v.x || v.y) {
+      this.player.x += v.x * PLAYER_SPEED * secs;
+      this.player.y += v.y * PLAYER_SPEED * secs;
       this.player.x = Math.max(PLAYER_RADIUS, this.player.x);
       this.player.x = Math.min(this.bounds.x - PLAYER_RADIUS, this.player.x);
       this.player.y = Math.max(PLAYER_RADIUS, this.player.y);
@@ -228,40 +220,6 @@ class MainScene extends Phaser.Scene {
       }
     }
     this.healthMeter.text = this.health.toString();
-  }
-
-
-  updateInput() {
-    let pad = this.input.gamepad.total > 0 ? this.input.gamepad.getPad(0) : null;
-    let x = 0;
-    let y = 0;
-    this.inputv.setTo(0);
-    if (this.keys.a.isDown || this.keys.left.isDown
-         || (pad && pad.left)) {
-      x = -1;
-    }
-    if (this.keys.d.isDown || this.keys.right.isDown
-         || (pad && pad.right)) {
-      x += 1;
-    }
-    if (this.keys.w.isDown || this.keys.up.isDown
-         || (pad && pad.up)) {
-      y = -1;
-    }
-    if (this.keys.s.isDown || this.keys.down.isDown
-         || (pad && pad.down)) {
-      y += 1;
-    }
-    if (pad && pad.axes.length > 0) {
-      let padX = pad.axes[0].getValue();
-      let padY = pad.axes[1].getValue();
-      if (padX*padX + padY*padY > DEAD_ZONE*DEAD_ZONE) {
-        x = padX;
-        y = padY;
-      }
-    }
-    this.inputv.set(x, y);
-    this.inputv.limit(1);
   }
 
 
