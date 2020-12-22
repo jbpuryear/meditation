@@ -37,7 +37,7 @@ class MenuScene extends Phaser.Scene {
     this.miasmaCam = miasmaCam;
     // Swap render order
     this.cameras.cameras.push(this.cameras.cameras.shift());
-    miasmaCam.setMask(new Phaser.Display.Masks.BitmapMask(this, this.noise));
+    this.mask = new Phaser.Display.Masks.BitmapMask(this, this.noise);
 
     this.bullet = this.add.image(c.x, c.y, 'spritesheet', 'big-circle');
     this.bullet.displayWidth = 184;
@@ -49,7 +49,7 @@ class MenuScene extends Phaser.Scene {
     this.add.existing(this.menu);
     this.menu.visible = false;
 
-    miasmaCam.ignore([ this.breathe, this.bullet ]);
+    miasmaCam.ignore([ this.breathe, this.bullet, this.menu ]);
     this.cameras.main.ignore([ miasma, this.bulletShadow ]);
 
     this.state = 'FADE_IN';
@@ -132,6 +132,7 @@ class MenuScene extends Phaser.Scene {
     this.bulletShadow.tint = colors.MIASMA;
     this.bullet.tint = colors.BULLET;
     this.breathe.tint = colors.PLAYER;
+    this.miasmaCam.setMask(colors.NOISE ? this.mask : null);
     this.updateMenuColors();
   }
 

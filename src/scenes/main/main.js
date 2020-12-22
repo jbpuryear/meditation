@@ -176,7 +176,9 @@ class MainScene extends Phaser.Scene {
     this.noise.tileScaleX = 2;
     this.noise.tileScalY = 1.5;
     this.noise.setOrigin(0, 0);
-    miasmaCam.setMask(new Phaser.Display.Masks.BitmapMask(this, this.noise));
+    if (colors.NOISE) {
+      miasmaCam.setMask(new Phaser.Display.Masks.BitmapMask(this, this.noise));
+    }
 
     this.time.addEvent({
       delay: 50,
