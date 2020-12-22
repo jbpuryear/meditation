@@ -67,6 +67,9 @@ class MenuScene extends Phaser.Scene {
     // still have the same values as when we exited, i.e. it will think A or start is still pushed.
     this.input.gamepad.update();
     this.updateColors();
+
+    // Let's us update input for a couple frames so we don't have false button presses when switching scenes.
+    this.frame = 0;
   }
 
 
@@ -75,12 +78,21 @@ class MenuScene extends Phaser.Scene {
     this.noise.tilePositionY += dt / 60;
     this.inputMap.update();
 
+    if (this.frame < 2) {
+      this.frame++;
+      return;
+    }
+
     if (this.state === 'FADE_IN') {
       if (this.inputMap.actions.action.justDown) {
         this.clearFadeIn();
       }
     } else if (this.state === 'MAIN') {
       let imap = this.inputMap.actions;
+      if (imap.start.justDown) {
+        this.startMain();
+        return;
+      }
       if (imap.up.justDown) {
         this.mySounds.blip.play();
         this.menu.handleInput(UI.UP);

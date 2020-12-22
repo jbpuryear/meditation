@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import UI from '../../UI/UI.js';
 import InputMap from '../../InputMap.js';
 import BulletManager from './BulletManager.js';
 import HealthMeter from './HealthMeter.js';
@@ -43,11 +44,19 @@ class MainScene extends Phaser.Scene {
     this.attackTimeMin = 0;
     this.atackTimeMax = 0;
     this.inputMap = null;
+    this.pauseScreen = null;
+    this.menu = null;
+    this.state = 'RUNNING';
+    // Let's us update input for a couple frames so we don't have false button presses when switching scenes.
+    this.frame = 0;
   }
 
 
   create() {
+    this.frame = 0;
+    this.state = 'INPUT_FIX';
     this.inputMap = new InputMap(this);
+    this.frame = 0;
     const colors = this.game.registry.get('theme');
     const diff = this.game.registry.get('difficulty');
     switch (diff) {
@@ -66,6 +75,8 @@ class MainScene extends Phaser.Scene {
     }
 
     this.mySounds = {
+      start: this.sound.add('start'),
+      blip: this.sound.add('blip', { volume: 0.4 }),
       pickup: this.sound.add('pickup', { volume: 1 }),
       hit: this.sound.add('hit', { volume: 0.6 }),
       gameOver: this.sound.add('game-over', { volume: 0.8 }),
@@ -151,10 +162,13 @@ class MainScene extends Phaser.Scene {
       paused: true,
     });
 
-    let miasmaCam = this.cameras.add();
-    miasmaCam.ignore([flashEffect, this.healthMeter, this.healthPickup.frag, this.player, this.shield, this.bulletManager.bulletSprites, this.bulletManager.frag]);
-    miasmaCam.ignore(this.healthMeter.hearts);
+    this.createPauseScreen();
+
     this.cameras.main.ignore([this.healthPickup.miasma, this.bulletManager.miasma, this.bulletManager.bulletShadows]);
+    let miasmaCam = this.cameras.add();
+    miasmaCam.ignore([flashEffect, this.healthMeter, this.healthPickup.frag, this.player, this.shield,
+      this.bulletManager.bulletSprites, this.bulletManager.frag, this.pauseScreen, this.healthMeter.hearts]);
+
     //Swap render order.
     this.cameras.cameras.push(this.cameras.cameras.shift());
 
@@ -173,15 +187,61 @@ class MainScene extends Phaser.Scene {
   }
 
 
+  createPauseScreen() {
+    this.pauseScreen = this.add.container();
+    const overlay = this.add.rectangle(0, 0, this.bounds.x, this.bounds.y, 0x000000);
+    overlay.setOrigin(0);
+    overlay.alpha = 0.8;
+    this.pauseScreen.add(overlay);
+
+    const me = this;
+    this.menu = new UI(this, this.bounds.x/2, this.bounds.y/2 - 30);
+    const list = new UI.UIList(this);
+    list.addEntry(new UI.Button(this, 'RESUME', function() {
+      me.mySounds.blip.play();
+      me.gameResume();
+    }));
+    list.addEntry(new UI.Button(this, 'MAIN MENU', function() {
+      me.mySounds.start.play();
+      me.gameOver();
+    }));
+    this.menu.addList('main', list);
+    this.menu.pushList('main');
+    this.add.existing(this.menu);
+
+    this.pauseScreen.add(this.menu);
+
+    this.pauseScreen.visible = false;
+  }
+
+
   update(_, dt) {
+    this.inputMap.update();
+
+    if (this.state === 'RUNNING') {
+      this.updateRunning(dt);
+    } else if (this.state === 'PAUSED') {
+      this.updatePaused(dt);
+    } else if (this.state === 'INPUT_FIX') {
+      if (this.frame > 2) { this.state = 'RUNNING'; }
+      this.frame++;
+    }
+  }
+
+
+  updateRunning(dt) {
+    if (this.inputMap.actions.start.justDown || this.inputMap.actions.cancel.justDown) {
+      this.mySounds.blip.play();
+      this.gamePause();
+      return;
+    }
+
     if (this.waiting) { return; }
     let secs = dt / 1000;
     let scaledDt = dt * this.timeScale;
     let shieldOn = this.isShieldOn;
     this.noise.tilePositionX += dt / 20;
     this.noise.tilePositionY += dt / 40;
-
-    this.inputMap.update();
 
     const v = this.inputMap.moveVec;
     if (v.x || v.y) {
@@ -209,6 +269,7 @@ class MainScene extends Phaser.Scene {
       this.healthMeter.setHealth(this.health);
       this.mySounds.hit.play();
       if (this.health <= 0) {
+        this.mySounds.gameOver.play();
         this.gameOver();
       } else {
         if (this.flashTween.isPlaying()) {
@@ -223,9 +284,46 @@ class MainScene extends Phaser.Scene {
   }
 
 
+  updatePaused(dt) {
+    if (this.inputMap.actions.start.justDown || this.inputMap.actions.cancel.justDown) {
+      this.mySounds.blip.play();
+      this.gameResume();
+      return
+    }
+
+    let imap = this.inputMap.actions;
+    if (imap.up.justDown) {
+      this.mySounds.blip.play();
+      this.menu.handleInput(UI.UP);
+    }
+    if (imap.down.justDown) {
+      this.mySounds.blip.play();
+      this.menu.handleInput(UI.DOWN);
+    }
+    if (imap.action.justDown) { this.menu.handleInput(UI.ACTION); }
+  }
+
+
+  gamePause() {
+    this.state = 'PAUSED';
+    this.time.paused = true;
+    this.tweens.timeScale = 0;
+    this.pauseScreen.visible = true;
+  }
+
+
+  gameResume() {
+    this.state = 'RUNNING';
+    this.time.paused = false;
+    this.tweens.timeScale = 1;
+    this.pauseScreen.visible = false;
+  }
+
+
   gameOver() {
+    this.time.paused = false;
+    this.tweens.timeScale = 1;
     this.mySounds.chill.stop();
-    this.mySounds.gameOver.play();
     this.time.removeAllEvents();
     this.healthPickup.removeListener('killed', this.startHealthSpawnTimer);
     this.scene.start('menu');
