@@ -183,7 +183,7 @@ class MainScene extends Phaser.Scene {
       callback: attackLoop,
       callbackScope: this,
     });
-    this.mySounds.chill.play();
+    this.mySounds.chill.play(undefined, { loop: true });
   }
 
 
