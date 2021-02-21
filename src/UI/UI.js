@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import COLORS from '../COLORS.js';
 
 
-const STYLE = { fontFamily: 'monument-valley', fontSize: '72px' }
+const STYLE = { fontFamily: 'monument-valley', fontSize: '72px' };
 
 
 class Button extends Phaser.GameObjects.Text {

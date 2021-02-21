@@ -17,6 +17,9 @@ class LoadScene extends Phaser.Scene {
   }
 
   preload() {
+    let progress = this.add.text(this.game.scale.gameSize.width/2, this.game.scale.gameSize.height/2, 'Loading...', { fontSize: '32px' });
+    progress.setOrigin(0.5);
+    this.load.on('progress', (val) => { progress.text = `Loading... ${Math.floor(val)}%`; });
     this.load.atlas('spritesheet', spritesheet, atlas);
     this.load.audio('start', start);
     this.load.audio('blip', blip);
@@ -36,4 +39,3 @@ class LoadScene extends Phaser.Scene {
 
 
 export default new LoadScene();
-

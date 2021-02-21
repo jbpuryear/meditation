@@ -288,7 +288,6 @@ class MainScene extends Phaser.Scene {
 
   updatePaused(dt) {
     if (this.inputMap.actions.start.justDown || this.inputMap.actions.cancel.justDown) {
-      this.mySounds.blip.play();
       this.gameResume();
       return
     }
@@ -323,6 +322,7 @@ class MainScene extends Phaser.Scene {
 
 
   gameOver() {
+    this.cameras.main.fadeOut(0, 255, 255, 255);
     this.time.paused = false;
     this.tweens.timeScale = 1;
     this.mySounds.chill.stop();
