@@ -45,6 +45,7 @@ export default class InputMap {
       cancel: {
         wasDown: false, isDown: false, justDown: false, timeDown: 0,
         keys: [
+          scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE),
           scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
         ],
       },

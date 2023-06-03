@@ -95,9 +95,8 @@ export default class BulletManager {
       tint: colors.BULLET,
     }));
 
-    // Another hack to get around a Phaser bug. Blitter Bob tints have their rgb reversed.
-    let miasmaColor = ((colors.MIASMA & 0xff0000) >> 16) | (colors.MIASMA & 0xff00) | ((colors.MIASMA & 0xff) << 16);
-    let bulletColor = ((colors.BULLET & 0xff0000) >> 16) | (colors.BULLET & 0xff00) | ((colors.BULLET & 0xff) << 16);
+    let miasmaColor = colors.MIASMA;
+    let bulletColor = colors.BULLET;
     for (let i = 0; i < BULLET_POOL_SIZE; ++i) {
       let shadow = this.bulletShadows.create(0, 0);
       shadow.tint = miasmaColor;

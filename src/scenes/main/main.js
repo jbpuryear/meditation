@@ -10,19 +10,16 @@ const PLAYER_SPEED = 150;
 const PLAYER_RADIUS = 4;
 const PLAYER_PICKUP_RADIUS = 16;
 const BULLET_SPEED = 150;
-const DEAD_ZONE = 0.2;
-const MIN_ATTACK_DIST = 128;
+const MIN_ATTACK_DIST = 160;
 const CIRCLE_ATTACK_MIN = 6;
 const CIRCLE_ATTACK_MAX = 16;
 const CIRCLE_INTERVAL = 400;
 const SPIRAL_ATTACK_MIN = 16;
 const SPIRAL_ATTACK_MAX = 64;
 const SPIRAL_INTERVAL = 150;
-const SHIELD_DURATION = 4000;
 const SHIELD_RADIUS = 256;
 const MAX_HEALTH = 5;
 const START_HEALTH = 3;
-const HEALTH_PICKUP_RAD = 32;
 
 
 class MainScene extends Phaser.Scene {
@@ -398,19 +395,25 @@ function attackLoop() {
   let x = 0;
   let y = 0;
   let tries = 0;
+  let tooClose = true;
+  let delay = 10;
   do {
     x = Math.random() * this.bounds.x;
     y = Math.random() * this.bounds.y;
+    tooClose = isWithin(x, y, this.player.x, this.player.y, MIN_ATTACK_DIST);
     ++tries;
-  } while (isWithin(x, y, this.player.x, this.player.y, MIN_ATTACK_DIST) && tries < 10); // Capping tries isn't just defensive, it's paranoid programming!
-  let roll = Math.random();
-  if (roll > 0.25) {
-    circleAttack(this, x, y);
-  } else {
-    spiralAttack(this, x, y);
+  } while (tooClose && tries < 10); // Capping tries isn't just defensive, it's paranoid programming!
+  if (!tooClose) {
+    let roll = Math.random();
+    if (roll > 0.25) {
+      circleAttack(this, x, y);
+    } else {
+      spiralAttack(this, x, y);
+    }
+    delay = Math.random() * (this.attackTimeMax - this.attackTimeMin) + this.attackTimeMin;
   }
   this.time.addEvent({
-    delay: Math.random() * (this.attackTimeMax - this.attackTimeMin) + this.attackTimeMin,
+    delay: delay,
     callback: attackLoop,
     callbackScope: this,
   });

@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 
-import monumentValley from './assets/fonts/MonumentValley.otf';
 import COLORS from './COLORS.js';
 import load from './scenes/load.js';
 import menu from './scenes/menu.js';
